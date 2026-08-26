@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import type { WorkoutSession } from "@/lib/fitness-data-model";
+import type { MuscleGroup, WorkoutSession } from "@/lib/fitness-data-model";
 
 function todayId() {
   return new Date().toISOString().slice(0, 10);
@@ -34,6 +34,7 @@ type DashboardMetrics = {
   hasFuel: boolean;
   fatigueSignal: boolean;
   program: string | null;
+  muscleGroupSets: Partial<Record<MuscleGroup, number>>;
 };
 
 export default function Home() {
@@ -46,6 +47,7 @@ export default function Home() {
     hasFuel: false,
     fatigueSignal: false,
     program: null,
+    muscleGroupSets: {},
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,13 +63,15 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const [sessionsSnap, readinessSnap, rpeSnap, mealsSnap] = await Promise.all([
+        const [sessionsSnap, readinessSnap, rpeSnap, mealsSnap, exercisesSnap] = await Promise.all([
           getDocs(query(collection(db, "workoutSessions"), where("ownerId", "==", user.uid))),
           getDocs(query(collection(db, "readinessCheckIns"), where("ownerId", "==", user.uid))),
           getDocs(query(collection(db, "sessionRPEs"), where("ownerId", "==", user.uid))),
           getDocs(query(collection(db, "mealLogs"), where("ownerId", "==", user.uid))),
+          getDocs(collection(db, "exercises")),
         ]);
         const sessions = sessionsSnap.docs.map((doc) => doc.data() as WorkoutSession);
+        const muscleByExercise = new Map(exercisesSnap.docs.map((doc) => [doc.id, (doc.data() as { muscleGroup?: MuscleGroup }).muscleGroup]));
         const today = todayId();
         const weekStart = new Date();
         weekStart.setUTCDate(weekStart.getUTCDate() - 6);
@@ -78,6 +82,11 @@ export default function Home() {
         const todayReadiness = readiness.find((item) => item.date === today)?.readinessScore ?? null;
         const recentReadiness = readiness.slice(0, 3);
         const fatigueSignal = recentReadiness.length >= 2 && recentReadiness.every((item) => item.readinessScore < 50);
+        const muscleGroupSets: Partial<Record<MuscleGroup, number>> = {};
+        for (const set of todaySession?.sets ?? []) {
+          const group = muscleByExercise.get(set.exerciseId);
+          if (group) muscleGroupSets[group] = (muscleGroupSets[group] ?? 0) + 1;
+        }
         setMetrics({
           weekSessions: sessions.filter((session) => session.date >= weekStartId && session.date <= today).length,
           streak: getStreak(sessionDates),
@@ -87,6 +96,7 @@ export default function Home() {
           hasFuel: mealsSnap.docs.some((doc) => (doc.data() as { date?: string }).date === today),
           fatigueSignal,
           program: todaySession?.program ?? null,
+          muscleGroupSets,
         });
       } catch (error) {
         console.error("Couldn't load dashboard metrics", error);
@@ -108,6 +118,7 @@ export default function Home() {
     : metrics.readinessScore < 60
     ? { eyebrow: "Adjust the dose", title: "Make room for a steady session.", body: "Your readiness is below your stronger days. Keep effort controlled and let the session earn its intensity." }
     : { eyebrow: "You have a clear signal", title: "Train with intent today.", body: "Your readiness supports a focused session. Keep the work honest, then capture how it felt." };
+  const planLabel = metrics.program ? metrics.program.replace("_", " ").toUpperCase() : "Choose a program";
 
   if (loading) {
     return <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-12 pt-8 lg:px-8 lg:pt-12"><div className="animate-pulse space-y-6"><div className="h-72 rounded-3xl bg-[var(--surface)]" /><div className="grid gap-4 sm:grid-cols-2"><div className="h-32 rounded-2xl bg-[var(--surface)]" /><div className="h-32 rounded-2xl bg-[var(--surface)]" /></div><div className="h-48 rounded-2xl bg-[var(--surface)]" /></div></main>;
@@ -144,6 +155,11 @@ export default function Home() {
 
       {metrics.fatigueSignal && <Link href="/fatigue" className="mt-6 block rounded-2xl border border-[var(--warm)]/40 bg-[var(--warm)]/10 p-5 transition-colors hover:border-[var(--warm)]"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">Recovery signal</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">Recent readiness is trending low.</h2><p className="mt-1 text-sm text-[var(--muted)]">Open fatigue overlay to compare readiness with your training effort.</p></Link>}
 
+      <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Training balance</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">Today by muscle group</h2></div><Link href="/trends" className="text-xs font-semibold text-[var(--accent)] hover:underline">Open review</Link></div>
+        {Object.keys(metrics.muscleGroupSets).length === 0 ? <Link href="/log" className="mt-4 block rounded-xl bg-[var(--surface-raised)] px-4 py-3 text-sm text-[var(--muted)] hover:text-[var(--foreground)]">Log your first set to see muscle-group volume here. <span className="font-semibold text-[var(--accent)]">Start training -&gt;</span></Link> : <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{(["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "calves", "core"] as MuscleGroup[]).map((group) => <div key={group} className="rounded-xl bg-[var(--surface-raised)] px-3 py-3"><p className="text-xs capitalize text-[var(--muted)]">{group}</p><strong className="mt-1 block text-2xl tracking-[-0.04em]">{metrics.muscleGroupSets[group] ?? 0}</strong><span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">sets</span></div>)}</div>}
+      </section>
+
       <section className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
           <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">This week</p>
@@ -161,7 +177,7 @@ export default function Home() {
         <div>
           <div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Your plan</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Built for today</h2><p className="mt-2 text-sm text-[var(--muted)]">A simple loop: check in, train, then reflect.</p></div>
           <Link href="/log" className="group block rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-raised)]">
-            <div className="flex items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">Upper body · 45 min</span><h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Strength &amp; control</h3><p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">A focused push and pull session, tuned to your current recovery level.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-lg text-[var(--accent-ink)] transition-transform group-hover:translate-x-1">-&gt;</span></div>
+            <div className="flex items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">{planLabel} · {metrics.readinessScore === null ? "readiness needed" : `${metrics.readinessScore} readiness`}</span><h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">{metrics.todaySets > 0 ? "Session in progress" : "Ready when you are"}</h3><p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">{metrics.todaySets > 0 ? "Pick up where you left off and finish with an honest effort rating." : "Choose your split, set your targets, and make today's work measurable."}</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-lg text-[var(--accent-ink)] transition-transform group-hover:translate-x-1">-&gt;</span></div>
             <div className="mt-7 flex flex-wrap gap-2 text-xs text-[var(--muted)]"><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">{metrics.todaySets} sets logged</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Moderate effort</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Gym access</span></div>
           </Link>
         </div>

@@ -137,6 +137,16 @@ export default function FatigueOverlay() {
     return null;
   }, [allDates, rirByDate, readinessByDate]);
 
+  const recoveryReadout = useMemo(() => {
+    const sharedDates = allDates.filter((date) => rirByDate.has(date) && readinessByDate.has(date));
+    if (sharedDates.length === 0) return null;
+    const recent = sharedDates.slice(-3);
+    const averageReadiness = Math.round(recent.reduce((sum, date) => sum + (readinessByDate.get(date) ?? 0), 0) / recent.length);
+    const readinessChange = recent.length > 1 ? (readinessByDate.get(recent[recent.length - 1]) ?? 0) - (readinessByDate.get(recent[0]) ?? 0) : 0;
+    const rirChange = recent.length > 1 ? Math.round((rirByDate.get(recent[recent.length - 1]) ?? 0) - (rirByDate.get(recent[0]) ?? 0)) : 0;
+    return { averageReadiness, readinessChange, rirChange, sessions: recent.length };
+  }, [allDates, readinessByDate, rirByDate]);
+
   const width = 640;
   const height = 260;
   const padding = { top: 20, right: 20, bottom: 32, left: 44 };
@@ -275,6 +285,13 @@ export default function FatigueOverlay() {
               <div className="mt-5 rounded-xl border border-[#D6976B]/40 bg-[#D6976B]/10 px-4 py-4 text-sm text-[#E8C39F]">
                 <p className="mb-1 font-semibold text-[#F2C49B]">Recovery signal</p>
                 {flag}
+              </div>
+            )}
+            {recoveryReadout && (
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl bg-[var(--surface-raised)] px-4 py-3"><p className="text-xs text-[var(--muted)]">Recent readiness</p><strong className="mt-1 block text-2xl">{recoveryReadout.averageReadiness}</strong><span className="text-xs text-[var(--muted)]">average / 100</span></div>
+                <div className="rounded-xl bg-[var(--surface-raised)] px-4 py-3"><p className="text-xs text-[var(--muted)]">Readiness direction</p><strong className={`mt-1 block text-2xl ${recoveryReadout.readinessChange < 0 ? "text-[var(--warm)]" : "text-[var(--accent)]"}`}>{recoveryReadout.readinessChange > 0 ? "+" : ""}{recoveryReadout.readinessChange}</strong><span className="text-xs text-[var(--muted)]">over {recoveryReadout.sessions} sessions</span></div>
+                <div className="rounded-xl bg-[var(--surface-raised)] px-4 py-3"><p className="text-xs text-[var(--muted)]">RIR direction</p><strong className={`mt-1 block text-2xl ${recoveryReadout.rirChange < 0 ? "text-[var(--warm)]" : "text-[var(--accent)]"}`}>{recoveryReadout.rirChange > 0 ? "+" : ""}{recoveryReadout.rirChange}</strong><span className="text-xs text-[var(--muted)]">normalized points</span></div>
               </div>
             )}
           </div>

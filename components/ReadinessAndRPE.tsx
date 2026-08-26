@@ -225,7 +225,7 @@ export default function ReadinessAndRPE() {
         </section>
 
         {/* Session RPE */}
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
+        <section id="session-effort" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--warm)]">After you train</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">Session effort</h2><p className="mt-2 text-sm text-[var(--muted)]">Tell Overtone how the work actually felt.</p></div>
             <span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2 text-xs font-semibold text-[var(--warm)]">RPE</span>

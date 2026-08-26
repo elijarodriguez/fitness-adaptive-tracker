@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
@@ -19,6 +20,7 @@ import type {
   MuscleGroup,
   SetLog,
   WorkoutFocus,
+  WorkoutExercisePlan,
   WorkoutProgram,
 } from "@/lib/fitness-data-model";
 import { useAuth } from "@/components/AuthProvider";
@@ -83,6 +85,7 @@ export default function WorkoutLogger() {
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "all">("all");
   const [program, setProgram] = useState<WorkoutProgram>("ppl");
   const [focus, setFocus] = useState<WorkoutFocus>("push");
+  const [routine, setRoutine] = useState<WorkoutExercisePlan[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [showAlternatives, setShowAlternatives] = useState(false);
@@ -92,6 +95,17 @@ export default function WorkoutLogger() {
   const [reps, setReps] = useState("");
   const [rir, setRir] = useState<number>(2);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [isWarmup, setIsWarmup] = useState(false);
+  const [isSuperset, setIsSuperset] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(90);
+  const [restRemaining, setRestRemaining] = useState(0);
+  const [completed, setCompleted] = useState(false);
+
+  useEffect(() => {
+    if (restRemaining <= 0) return;
+    const timer = window.setInterval(() => setRestRemaining((remaining) => Math.max(0, remaining - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [restRemaining]);
 
   const [loggedSets, setLoggedSets] = useState<SetLog[]>([]);
   const [previousSets, setPreviousSets] = useState<SetLog[]>([]);
@@ -116,11 +130,13 @@ export default function WorkoutLogger() {
         setExercises(exSnap.docs.map((d) => ({ ...(d.data() as Exercise), id: d.id })));
         setSubGroups(subSnap.docs.map((d) => d.data() as ExerciseSubstitutionGroup));
         const previousSession = sessionsSnap.docs
-          .map((session) => session.data() as { date: string; sets?: SetLog[]; program?: WorkoutProgram; focus?: WorkoutFocus })
+          .map((session) => session.data() as { date: string; sets?: SetLog[]; program?: WorkoutProgram; focus?: WorkoutFocus; routine?: WorkoutExercisePlan[]; completedAt?: string })
           .find((session) => session.date === todayId());
         setLoggedSets((previousSession?.sets ?? []) as SetLog[]);
         if (previousSession?.program) setProgram(previousSession.program);
         if (previousSession?.focus) setFocus(previousSession.focus);
+        if (previousSession?.routine) setRoutine(previousSession.routine);
+        setCompleted(Boolean(previousSession?.completedAt));
         const priorSession = sessionsSnap.docs
           .map((session) => session.data() as { date: string; sets?: SetLog[] })
           .filter((session) => session.date < todayId())
@@ -157,6 +173,22 @@ export default function WorkoutLogger() {
   const selectedProgram = PROGRAMS.find((item) => item.id === program) ?? PROGRAMS[0];
   const selectedFocus = selectedProgram.focuses.find((item) => item.id === focus) ?? selectedProgram.focuses[0];
   const focusExercises = filteredExercises.filter((exercise) => selectedFocus.groups.includes(exercise.muscleGroup));
+
+  const generatedRoutine = selectedFocus.groups
+    .map((group) => [...exercises, ...customExercises].find((exercise) => exercise.muscleGroup === group))
+    .filter((exercise): exercise is Exercise => Boolean(exercise))
+    .slice(0, 6)
+    .map((exercise, index): WorkoutExercisePlan => ({
+      exerciseId: exercise.id,
+      order: index,
+      targetSets: index < 2 ? 4 : 3,
+      targetReps: index < 2 ? "6-10" : "10-15",
+      targetRir: 2,
+      restSeconds: index < 2 ? 120 : 90,
+      warmupSets: index === 0 ? 2 : 0,
+      supersetKey: index > 1 && index % 2 === 0 ? `pair-${index}` : undefined,
+    }));
+  const activeRoutine = routine.length > 0 ? routine : generatedRoutine;
 
   const allExercises = useMemo(() => [...exercises, ...customExercises], [exercises, customExercises]);
   const selectedExercise = allExercises.find((e) => e.id === selectedExerciseId) ?? null;
@@ -213,6 +245,10 @@ export default function WorkoutLogger() {
     setVariation("");
     setReps("");
     setRir(2);
+    const plan = activeRoutine.find((item) => item.exerciseId === id);
+    setRestSeconds(plan?.restSeconds ?? 90);
+    setIsWarmup(false);
+    setIsSuperset(Boolean(plan?.supersetKey));
     setNotice(null);
   }
 
@@ -222,12 +258,14 @@ export default function WorkoutLogger() {
     setFocus(next.focuses[0].id);
     setMuscleFilter("all");
     setSelectedExerciseId(null);
+    setRoutine([]);
   }
 
   function selectFocus(nextFocus: WorkoutFocus) {
     setFocus(nextFocus);
     setMuscleFilter("all");
     setSelectedExerciseId(null);
+    setRoutine([]);
   }
 
   function editSet(set: SetLog) {
@@ -268,6 +306,8 @@ export default function WorkoutLogger() {
       exerciseId: selectedExercise.id,
       reps: repsValue,
       rir: rir as SetLog["rir"],
+      ...(isWarmup ? { warmup: true } : {}),
+      ...(isSuperset ? { supersetKey: activeRoutine.find((item) => item.exerciseId === selectedExercise.id)?.supersetKey ?? `manual-${selectedExercise.id}` } : {}),
       ...(selectedExercise.equipmentTier === "bodyweight"
         ? { bodyweightVariation: variation || "standard" }
         : weightValue !== undefined
@@ -291,7 +331,7 @@ export default function WorkoutLogger() {
       } else {
         await setDoc(
           sessionRef,
-          { id: todayId(), date: todayId(), ownerId: user.uid, program, focus, sets: arrayUnion(newSet) },
+          { id: todayId(), date: todayId(), ownerId: user.uid, program, focus, routine: activeRoutine, sets: arrayUnion(newSet) },
           { merge: true }
         );
         setLoggedSets((prev) => [...prev, newSet]);
@@ -300,11 +340,29 @@ export default function WorkoutLogger() {
       setWeightKg("");
       setVariation("");
       setRir(2);
+      setIsWarmup(false);
+      setRestRemaining(restSeconds);
       setEditingSetId(null);
       setNotice(editingSetId ? "Set updated" : "Set logged");
     } catch (e) {
       console.error(e);
       setError("That set didn't save — it's not logged yet. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function finishWorkout() {
+    if (!user || loggedSets.length === 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await setDoc(doc(db, "workoutSessions", sessionDocId(user.uid, todayId())), { ownerId: user.uid, program, focus, routine: activeRoutine, completedAt: new Date().toISOString() }, { merge: true });
+      setCompleted(true);
+      setNotice("Workout complete. Capture how it felt next.");
+    } catch (e) {
+      console.error(e);
+      setError("Your workout is logged, but we couldn't mark it complete. Try again.");
     } finally {
       setSaving(false);
     }
@@ -396,6 +454,17 @@ export default function WorkoutLogger() {
             <span>{notice}</span><button type="button" onClick={() => setNotice(null)} className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]">Dismiss</button>
           </div>
         )}
+
+        <section className="mb-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Your routine</p><h2 className="mt-1 text-lg font-semibold">{selectedProgram.label} · {selectedFocus.label}</h2></div><span className="text-xs text-[var(--muted)]">{activeRoutine.length} exercises · {loggedSets.length} sets logged</span></div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {activeRoutine.map((plan) => {
+              const exerciseSets = loggedSets.filter((set) => set.exerciseId === plan.exerciseId && !set.warmup).length;
+              const selected = selectedExerciseId === plan.exerciseId;
+              return <button key={plan.exerciseId} type="button" onClick={() => selectExercise(plan.exerciseId)} className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${selected ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-[var(--line)] bg-[var(--surface-raised)] hover:border-[var(--accent)]/50"}`}><span className="min-w-0"><strong className="block truncate text-sm">{plan.order + 1}. {exerciseName(plan.exerciseId)}</strong><span className="text-xs text-[var(--muted)]">{plan.targetSets} × {plan.targetReps} · RIR {plan.targetRir} · {plan.restSeconds}s rest{plan.warmupSets ? ` · ${plan.warmupSets} warm-up` : ""}</span></span><span className="ml-3 shrink-0 font-mono text-xs text-[var(--accent)]">{exerciseSets}/{plan.targetSets}</span></button>;
+            })}
+          </div>
+        </section>
 
         {/* Muscle group filter */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -498,6 +567,7 @@ export default function WorkoutLogger() {
               <div className="mb-5 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-4 py-3 text-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Last logged set</p>
                 <p className="mt-1 text-[var(--muted)]">{previousSet.weightKg !== undefined ? `${previousSet.weightKg} kg` : previousSet.bodyweightVariation ?? "Bodyweight"} × {previousSet.reps} reps · RIR {previousSet.rir}</p>
+                {previousSet.weightKg !== undefined && previousSet.rir >= 2 && <p className="mt-2 text-xs font-semibold text-[var(--warm)]">Progression cue: try {previousSet.weightKg + 2.5} kg next time if you can keep RIR 2 or higher.</p>}
               </div>
             )}
 
@@ -557,6 +627,9 @@ export default function WorkoutLogger() {
                 />
               </div>
 
+              <label className="col-span-2 flex min-h-11 items-center gap-2 rounded-md border border-[var(--line)] px-3 py-2 text-xs text-[var(--muted)] sm:col-span-1"><input type="checkbox" checked={isWarmup} onChange={(event) => setIsWarmup(event.target.checked)} className="accent-[var(--accent)]" /> Warm-up</label>
+              <label className="col-span-2 flex min-h-11 items-center gap-2 rounded-md border border-[var(--line)] px-3 py-2 text-xs text-[var(--muted)] sm:col-span-1"><input type="checkbox" checked={isSuperset} onChange={(event) => setIsSuperset(event.target.checked)} className="accent-[var(--accent)]" /> Superset</label>
+
               <div>
                 <label className="mb-1 block text-xs text-[#8B939B]">RIR</label>
                 <select
@@ -582,6 +655,7 @@ export default function WorkoutLogger() {
                 </button>
               </div>
             </div>
+            {restRemaining > 0 && <div className="mt-4 flex items-center justify-between rounded-xl bg-[var(--surface-raised)] px-4 py-3 text-sm"><span className="text-[var(--muted)]">Rest timer</span><strong className="font-mono text-[var(--accent)]">{Math.floor(restRemaining / 60)}:{String(restRemaining % 60).padStart(2, "0")}</strong><button type="button" onClick={() => setRestRemaining(0)} className="text-xs text-[var(--muted)] underline">Skip</button></div>}
           </div>
         )}
 
@@ -606,7 +680,7 @@ export default function WorkoutLogger() {
               ))}
             </ul>
           )}
-          {loggedSets.length > 0 && <div className="mt-5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--surface)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Good work</p><p className="mt-2 text-sm leading-6 text-[var(--muted)]">You&apos;ve logged {loggedSets.length} set{loggedSets.length === 1 ? "" : "s"} today. Keep the next one controlled and honest.</p></div>}
+          {loggedSets.length > 0 && <div className="mt-5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--surface)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">{completed ? "Session complete" : "Keep the thread"}</p><p className="mt-2 text-sm leading-6 text-[var(--muted)]">You&apos;ve logged {loggedSets.length} set{loggedSets.length === 1 ? "" : "s"} today. {completed ? "Your next step is to capture session effort." : "Finish when your planned work is done."}</p><div className="mt-4 flex flex-wrap gap-2">{!completed && <button type="button" onClick={finishWorkout} disabled={saving} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-40">{saving ? "Finishing…" : "Finish workout"}</button>}{completed && <Link href="/checkin#session-effort" className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)]">Log session RPE</Link>}</div></div>}
         </div>
       </div>
     </div>

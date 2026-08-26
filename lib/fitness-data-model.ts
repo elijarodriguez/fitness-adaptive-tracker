@@ -40,6 +40,17 @@ export type WorkoutFocus =
   | "anterior"
   | "posterior";
 
+export interface WorkoutExercisePlan {
+  exerciseId: string;
+  order: number;
+  targetSets: number;
+  targetReps: string;
+  targetRir: 0 | 1 | 2 | 3 | 4;
+  restSeconds: number;
+  warmupSets?: number;
+  supersetKey?: string;
+}
+
 // Where in the range of motion the exercise loads the muscle hardest.
 // Applies to compounds AND isolation exercises — e.g. SLDL (compound) is
 // stretch-emphasis on the hamstrings, same logic as an incline curl.
@@ -74,6 +85,8 @@ export interface SetLog {
   bodyweightVariation?: string; // e.g. "feet-elevated", "standard"
   reps: number;
   rir: 0 | 1 | 2 | 3 | 4; // reps in reserve
+  warmup?: boolean;
+  supersetKey?: string;
 }
 
 export interface WorkoutSession {
@@ -84,6 +97,8 @@ export interface WorkoutSession {
   durationMinutes?: number; // used for training load calc, paired with SessionRPE
   program?: WorkoutProgram;
   focus?: WorkoutFocus;
+  completedAt?: string;
+  routine?: WorkoutExercisePlan[];
 }
 
 // ---------- Session RPE / Training Load ----------
