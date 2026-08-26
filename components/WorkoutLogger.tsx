@@ -213,7 +213,7 @@ export default function WorkoutLogger() {
       return;
     }
     if (weightValue !== undefined && (!Number.isFinite(weightValue) || weightValue < 0 || weightValue > MAX_REASONABLE_WEIGHT_KG)) {
-      setError(`Weight must be between 0 and ${MAX_REASONABLE_WEIGHT_KG}kg.`);
+      setError(`Weights must be between 0 and ${MAX_REASONABLE_WEIGHT_KG}kg.`);
       return;
     }
 
