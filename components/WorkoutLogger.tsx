@@ -190,6 +190,7 @@ export default function WorkoutLogger() {
       ...(index > 1 && index % 2 === 0 ? { supersetKey: `pair-${index}` } : {}),
     }));
   const activeRoutine = routine.length > 0 ? routine : generatedRoutine;
+  const allExercises = useMemo(() => [...exercises, ...customExercises], [exercises, customExercises]);
   const workoutContext = JSON.stringify({
     program,
     focus,
@@ -205,7 +206,6 @@ export default function WorkoutLogger() {
     })),
   });
 
-  const allExercises = useMemo(() => [...exercises, ...customExercises], [exercises, customExercises]);
   const selectedExercise = allExercises.find((e) => e.id === selectedExerciseId) ?? null;
 
   const previousSet = useMemo(() => {
