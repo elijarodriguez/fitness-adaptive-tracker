@@ -1,13 +1,26 @@
 # Overtone
 
-Overtone is a mobile-friendly adaptive training tracker. The current MVP focuses on one dependable workflow:
+Overtone is a mobile-friendly adaptive training tracker for strength and bodybuilding workflows. It connects readiness, programming, workout logging, recovery, nutrition, and training review in one daily loop:
 
 1. Sign in with Google or email/password.
-2. Choose an exercise from the shared exercise library.
-3. Add sets with weight, reps, variation, and reps in reserve (RIR).
-4. Review, edit, or delete sets logged today.
+2. Complete a readiness check-in before training.
+3. Choose a training program and focus.
+4. Follow an ordered routine with planned sets, rep ranges, target RIR, rest periods, warm-up sets, and supersets.
+5. Log working sets with weight, reps, variation, and RIR.
+6. Finish the workout, record session effort, and review recovery trends.
 
-Users can also create personal custom exercises. Authentication is handled by Firebase Authentication, and workout data is stored in Cloud Firestore.
+Users can create personal custom exercises, track portion-based meals, inspect muscle-group set volume, and compare readiness with training effort. Authentication is handled by Firebase Authentication, and workout data is stored in Cloud Firestore.
+
+## Features
+
+- **Training programs:** PPL, Arnold Split, Upper/Lower, FBEOD, and Anterior/Posterior.
+- **Programmable routines:** ordered exercises, planned sets, rep ranges, target RIR, rest periods, warm-up sets, and superset groups.
+- **Progressive overload:** previous-set context and load recommendations such as adding 2.5 kg when the target RIR is maintained.
+- **Workout completion:** finish a session and jump directly to post-workout RPE tracking.
+- **Adaptive dashboard:** context-aware guidance based on readiness, session progress, nutrition, recent fatigue signals, and muscle-group volume.
+- **Recovery analysis:** readiness and RIR direction, recent averages, and fatigue overlay charts.
+- **Local workout coach:** rule-based written analysis of the current session with optional browser text-to-speech. It is free, private, and does not require an AI API key.
+- **Mobile navigation:** bottom navigation for Today, Train, Fuel, and Review, with Fatigue and Account in More.
 
 ## Tech Stack
 
@@ -30,7 +43,7 @@ firebase.json              Firebase CLI rules configuration
 scripts/                   Local admin and seed scripts
 ```
 
-The main visible product surface is currently `/`, `/account`, and `/log`. Check-in, meals, trends, wellness, and recovery components remain in the repository but are not part of the primary navigation while the MVP is being stabilized.
+The primary routes are `/`, `/checkin`, `/log`, `/meals`, `/trends`, `/fatigue`, `/wellness`, and `/account`.
 
 ## Requirements
 
@@ -64,6 +77,8 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+The local workout coach uses the browser Web Speech API. Spoken feedback depends on browser and operating-system speech support; written feedback remains available when speech is unavailable.
 
 ## Firebase Setup
 
@@ -102,6 +117,7 @@ npm run build
 npm run dev      # Start the development server
 npm run lint     # Run ESLint
 npm run build    # Create a production build
+npm test         # Run unit tests
 npm run start    # Start the production server
 ```
 
@@ -137,4 +153,6 @@ npx tsx scripts/migrate-owner.ts <firebase-user-uid> --apply
 
 ## Current Scope
 
-The MVP prioritizes reliable workout logging. Additional tracking and analytics features are present in the codebase but should be reintroduced to the main experience only after each workflow has focused tests and verified Firestore permissions.
+The app currently uses explainable local coaching rules rather than a paid or hosted large-language model. The coach evaluates logged sets, planned work, average RIR, loaded work, and completion state. It does not provide open-ended conversational reasoning.
+
+Firestore permissions should be verified in the target Firebase project before production use. Run the available lint, build, and unit-test checks after changing workout or data-model behavior.
