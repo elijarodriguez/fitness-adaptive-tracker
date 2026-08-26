@@ -185,8 +185,8 @@ export default function WorkoutLogger() {
       targetReps: index < 2 ? "6-10" : "10-15",
       targetRir: 2,
       restSeconds: index < 2 ? 120 : 90,
-      warmupSets: index === 0 ? 2 : 0,
-      supersetKey: index > 1 && index % 2 === 0 ? `pair-${index}` : undefined,
+      ...(index === 0 ? { warmupSets: 2 } : {}),
+      ...(index > 1 && index % 2 === 0 ? { supersetKey: `pair-${index}` } : {}),
     }));
   const activeRoutine = routine.length > 0 ? routine : generatedRoutine;
 
