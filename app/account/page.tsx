@@ -21,7 +21,17 @@ export default function AccountPage() {
 			else await signUp(email, password);
 		} catch (authError) {
 			console.error(authError);
-			setError("Email authentication failed. Check your details and try again.");
+			const code = typeof authError === "object" && authError !== null && "code" in authError ? String(authError.code) : "";
+			const messages: Record<string, string> = {
+				"auth/invalid-credential": "That email or password is incorrect. If you used Google to create the account, use Google sign-in instead.",
+				"auth/user-not-found": "No email/password account exists for this email. Create an account first or use Google sign-in.",
+				"auth/wrong-password": "That password is incorrect. Try again or create a new account.",
+				"auth/email-already-in-use": "This email already has an account. Use the existing password or choose Google sign-in.",
+				"auth/weak-password": "Choose a password with at least 6 characters.",
+				"auth/operation-not-allowed": "Email/password sign-in is disabled in Firebase Authentication.",
+				"auth/invalid-api-key": "Firebase Authentication is not configured correctly for this deployment.",
+			};
+			setError(messages[code] ?? "Email authentication failed. Check your details and try again.");
 		} finally {
 			setSaving(false);
 		}
