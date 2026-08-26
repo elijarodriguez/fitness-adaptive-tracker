@@ -69,29 +69,34 @@ export default function WorkoutLogger() {
   useEffect(() => {
     async function load() {
       try {
-        const [exSnap, subSnap, sessionSnap, sessionsSnap] = await Promise.all([
+        const [exSnap, subSnap, sessionsSnap] = await Promise.all([
           getDocs(collection(db, "exercises")),
           getDocs(collection(db, "substitutionGroups")),
-          user ? getDoc(doc(db, "workoutSessions", todayId())) : Promise.resolve(null),
           user ? getDocs(query(collection(db, "workoutSessions"), where("ownerId", "==", user.uid))) : Promise.resolve({ docs: [] }),
         ]);
         setExercises(exSnap.docs.map((d) => d.data() as Exercise));
         setSubGroups(subSnap.docs.map((d) => d.data() as ExerciseSubstitutionGroup));
-        if (sessionSnap?.exists()) {
-          setLoggedSets((sessionSnap.data().sets ?? []) as SetLog[]);
-        }
         const previousSession = sessionsSnap.docs
+          .map((session) => session.data() as { date: string; sets?: SetLog[] })
+          .find((session) => session.date === todayId());
+        setLoggedSets((previousSession?.sets ?? []) as SetLog[]);
+        const priorSession = sessionsSnap.docs
           .map((session) => session.data() as { date: string; sets?: SetLog[] })
           .filter((session) => session.date < todayId())
           .sort((a, b) => b.date.localeCompare(a.date))[0];
-        setPreviousSets(previousSession?.sets ?? []);
+        setPreviousSets(priorSession?.sets ?? []);
         if (user) {
           const customSnap = await getDocs(collection(db, "users", user.uid, "customExercises"));
           setCustomExercises(customSnap.docs.map((item) => ({ ...(item.data() as Exercise), id: item.id })));
         }
       } catch (e) {
         console.error(e);
-        setError("Couldn't load your exercises. Check your connection and try again.");
+        const code = typeof e === "object" && e !== null && "code" in e ? String(e.code) : "";
+        setError(
+          code === "permission-denied"
+            ? "Firebase denied access. Deploy the current Firestore rules and check your signed-in account."
+            : "Couldn't load your exercises. Check your connection and try again."
+        );
       } finally {
         setLoading(false);
       }
