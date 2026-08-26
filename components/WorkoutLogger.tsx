@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import CoachPanel from "@/components/CoachPanel";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -78,41 +79,6 @@ function sessionDocId(uid: string, dateId: string) {
   return `${uid}_${dateId}`;
 }
 
-function buildWorkoutAnalysis(
-  loggedSets: SetLog[],
-  routine: WorkoutExercisePlan[],
-  completed: boolean
-) {
-  if (loggedSets.length === 0) {
-    return "No workout data yet. Log your first set and I will analyze your training quality.";
-  }
-
-  const workingSets = loggedSets.filter((set) => !set.warmup);
-  const averageRir = workingSets.length > 0
-    ? workingSets.reduce((total, set) => total + set.rir, 0) / workingSets.length
-    : 0;
-  const plannedSets = routine.reduce((total, plan) => total + plan.targetSets, 0);
-  const planCompletion = plannedSets > 0 ? Math.round((workingSets.length / plannedSets) * 100) : 100;
-  const overloadedSets = workingSets.filter((set) => set.weightKg !== undefined).length;
-  const parts = [
-    completed ? "Your workout is complete." : "Your workout is in progress.",
-    `${workingSets.length} working set${workingSets.length === 1 ? "" : "s"} logged across ${new Set(workingSets.map((set) => set.exerciseId)).size} exercise${new Set(workingSets.map((set) => set.exerciseId)).size === 1 ? "" : "s"}.`,
-    `You completed about ${Math.min(planCompletion, 100)} percent of the planned work.`,
-  ];
-
-  if (averageRir >= 2 && averageRir <= 3) {
-    parts.push("Your average RIR is in a strong hypertrophy range. The effort looks well controlled.");
-  } else if (averageRir < 2) {
-    parts.push("You trained very close to failure. That can be productive, but watch recovery before adding more volume.");
-  } else {
-    parts.push("You had more reps in reserve than the target. Consider a small load increase next time if technique stayed solid.");
-  }
-
-  if (overloadedSets > 0) parts.push("You recorded loaded work, so this session can support progression tracking.");
-  if (!completed) parts.push("Finish the session when the planned work is done, then record your session RPE for a complete analysis.");
-  return parts.join(" ");
-}
-
 export default function WorkoutLogger() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
@@ -135,7 +101,6 @@ export default function WorkoutLogger() {
   const [restSeconds, setRestSeconds] = useState(90);
   const [restRemaining, setRestRemaining] = useState(0);
   const [completed, setCompleted] = useState(false);
-  const [coachSpeaking, setCoachSpeaking] = useState(false);
 
   useEffect(() => {
     if (restRemaining <= 0) return;
@@ -225,7 +190,20 @@ export default function WorkoutLogger() {
       ...(index > 1 && index % 2 === 0 ? { supersetKey: `pair-${index}` } : {}),
     }));
   const activeRoutine = routine.length > 0 ? routine : generatedRoutine;
-  const workoutAnalysis = buildWorkoutAnalysis(loggedSets, activeRoutine, completed);
+  const workoutContext = JSON.stringify({
+    program,
+    focus,
+    completed,
+    routine: activeRoutine.map((plan) => ({ ...plan, exercise: exerciseName(plan.exerciseId) })),
+    loggedSets: loggedSets.map((set) => ({
+      exercise: exerciseName(set.exerciseId),
+      weightKg: set.weightKg,
+      reps: set.reps,
+      rir: set.rir,
+      warmup: Boolean(set.warmup),
+      superset: Boolean(set.supersetKey),
+    })),
+  });
 
   const allExercises = useMemo(() => [...exercises, ...customExercises], [exercises, customExercises]);
   const selectedExercise = allExercises.find((e) => e.id === selectedExerciseId) ?? null;
@@ -403,24 +381,6 @@ export default function WorkoutLogger() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function speakWorkoutAnalysis() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setError("Spoken analysis is not available in this browser.");
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(workoutAnalysis);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    utterance.onstart = () => setCoachSpeaking(true);
-    utterance.onend = () => setCoachSpeaking(false);
-    utterance.onerror = () => {
-      setCoachSpeaking(false);
-      setError("The spoken analysis could not start. Try again or use the written summary.");
-    };
-    window.speechSynthesis.speak(utterance);
   }
 
   async function deleteSet(setId: string) {
@@ -736,7 +696,7 @@ export default function WorkoutLogger() {
             </ul>
           )}
           {loggedSets.length > 0 && <div className="mt-5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--surface)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">{completed ? "Session complete" : "Keep the thread"}</p><p className="mt-2 text-sm leading-6 text-[var(--muted)]">You&apos;ve logged {loggedSets.length} set{loggedSets.length === 1 ? "" : "s"} today. {completed ? "Your next step is to capture session effort." : "Finish when your planned work is done."}</p><div className="mt-4 flex flex-wrap gap-2">{!completed && <button type="button" onClick={finishWorkout} disabled={saving} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-40">{saving ? "Finishing…" : "Finish workout"}</button>}{completed && <Link href="/checkin#session-effort" className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)]">Log session RPE</Link>}</div></div>}
-          {loggedSets.length > 0 && <section className="mt-5 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">Local coach</p><h2 className="mt-1 text-lg font-semibold">Workout analysis</h2></div><button type="button" onClick={speakWorkoutAnalysis} className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:border-[var(--accent)] hover:text-[var(--accent)]">{coachSpeaking ? "Speaking…" : "Read aloud"}</button></div><p className="mt-4 text-sm leading-6 text-[var(--muted)]">{workoutAnalysis}</p><p className="mt-3 text-[11px] text-[var(--muted)]">Runs in your browser using your workout data. No paid AI service or workout data upload.</p></section>}
+          {loggedSets.length > 0 && <CoachPanel context={workoutContext} />}
         </div>
       </div>
     </div>

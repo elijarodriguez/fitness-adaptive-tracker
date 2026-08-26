@@ -19,7 +19,7 @@ Users can create personal custom exercises, track portion-based meals, inspect m
 - **Workout completion:** finish a session and jump directly to post-workout RPE tracking.
 - **Adaptive dashboard:** context-aware guidance based on readiness, session progress, nutrition, recent fatigue signals, and muscle-group volume.
 - **Recovery analysis:** readiness and RIR direction, recent averages, and fatigue overlay charts.
-- **Local workout coach:** rule-based written analysis of the current session with optional browser text-to-speech. It is free, private, and does not require an AI API key.
+- **Gemini coach:** conversational workout analysis through a Vercel server route, with optional browser read-aloud. The Gemini key stays server-side.
 - **Mobile navigation:** bottom navigation for Today, Train, Fuel, and Review, with Fatigue and Account in More.
 
 ## Tech Stack
@@ -68,6 +68,7 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
 Start the development server:
@@ -79,6 +80,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 The local workout coach uses the browser Web Speech API. Spoken feedback depends on browser and operating-system speech support; written feedback remains available when speech is unavailable.
+
+The Gemini coach uses the server-only `GEMINI_API_KEY` variable. Add the same variable in Vercel under **Project Settings > Environment Variables** for the environments where the coach should run. Never use the `NEXT_PUBLIC_` prefix for this key. The route limits request size and frequency to help protect the free Gemini quota.
 
 ## Firebase Setup
 
@@ -101,7 +104,7 @@ The `firebase.json` file maps the deployment to `firestore.rules`.
 
 ## Vercel Deployment
 
-Import the repository into Vercel and configure all six `NEXT_PUBLIC_FIREBASE_*` variables for the **Production** environment. Redeploy after changing environment variables.
+Import the repository into Vercel and configure all six `NEXT_PUBLIC_FIREBASE_*` variables plus `GEMINI_API_KEY` for the **Production** environment. Redeploy after changing environment variables.
 
 Also add the exact Vercel hostname to Firebase Authentication authorized domains. Vercel hosting and Firebase rules are separate deployments, so deploy Firestore rules with the Firebase CLI as shown above.
 
@@ -153,6 +156,6 @@ npx tsx scripts/migrate-owner.ts <firebase-user-uid> --apply
 
 ## Current Scope
 
-The app currently uses explainable local coaching rules rather than a paid or hosted large-language model. The coach evaluates logged sets, planned work, average RIR, loaded work, and completion state. It does not provide open-ended conversational reasoning.
+The app uses Gemini for conversational coaching through `app/api/coach/route.ts`. The coach receives a compact workout context containing routine targets, logged sets, RIR, program, focus, and completion state. It does not receive the Firebase service account or raw credentials. Gemini usage is subject to Google&apos;s current free-tier quotas; exceeding the quota produces an error rather than a local fallback.
 
 Firestore permissions should be verified in the target Firebase project before production use. Run the available lint, build, and unit-test checks after changing workout or data-model behavior.
