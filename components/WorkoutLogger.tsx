@@ -205,20 +205,22 @@ export default function WorkoutLogger() {
     setError(null);
     try {
       const sessionRef = doc(db, "workoutSessions", todayId());
-      const snap = await getDoc(sessionRef);
-      if (editingSetId && snap.exists()) {
+      if (editingSetId) {
+        const snap = await getDoc(sessionRef);
+        if (!snap.exists()) throw new Error("Workout session not found");
         const existingSets = (snap.data().sets ?? []) as SetLog[];
         const updatedSets = existingSets.map((set) =>
           set.id === editingSetId ? { ...newSet, id: editingSetId } : set
         );
         await setDoc(sessionRef, { ownerId: user.uid, sets: updatedSets }, { merge: true });
         setLoggedSets(updatedSets);
-      } else if (snap.exists()) {
-        await setDoc(sessionRef, { ownerId: user.uid, sets: arrayUnion(newSet) }, { merge: true });
-        setLoggedSets((prev) => [...prev, newSet]);
       } else {
-        await setDoc(sessionRef, { id: todayId(), date: todayId(), ownerId: user.uid, sets: [newSet] });
-        setLoggedSets([newSet]);
+        await setDoc(
+          sessionRef,
+          { id: todayId(), date: todayId(), ownerId: user.uid, sets: arrayUnion(newSet) },
+          { merge: true }
+        );
+        setLoggedSets((prev) => [...prev, newSet]);
       }
       setReps("");
       setWeightKg("");
