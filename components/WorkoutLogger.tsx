@@ -320,10 +320,10 @@ export default function WorkoutLogger() {
             className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none sm:w-52"
           />
         </div>
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
           <button
             onClick={() => setMuscleFilter("all")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium tracking-wide transition-colors ${
+            className={`min-h-10 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium tracking-wide transition-colors ${
               muscleFilter === "all"
                 ? "bg-[#5B8C7B] text-[#14171A]"
                 : "bg-[#1E2226] text-[#8B939B] hover:text-[#ECEEF0]"
@@ -335,7 +335,7 @@ export default function WorkoutLogger() {
             <button
               key={mg}
               onClick={() => setMuscleFilter(mg)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize tracking-wide transition-colors ${
+              className={`min-h-10 shrink-0 rounded-full px-3 py-1.5 text-xs font-medium capitalize tracking-wide transition-colors ${
                 muscleFilter === mg
                   ? "bg-[#5B8C7B] text-[#14171A]"
                   : "bg-[#1E2226] text-[#8B939B] hover:text-[#ECEEF0]"
@@ -372,7 +372,7 @@ export default function WorkoutLogger() {
               <button
                 key={ex.id}
                 onClick={() => selectExercise(ex.id)}
-                className={`flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                className={`flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
                   selectedExerciseId === ex.id
                     ? "bg-[#5B8C7B]/15 text-[#ECEEF0]"
                     : "text-[#C5CAD0] hover:bg-[var(--surface-raised)]"
@@ -481,7 +481,7 @@ export default function WorkoutLogger() {
                 <button
                   onClick={addSet}
                   disabled={!reps || saving}
-                  className="w-full rounded-md bg-[#5B8C7B] px-3 py-2 text-sm font-medium text-[#14171A] transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="min-h-11 w-full rounded-md bg-[#5B8C7B] px-3 py-2 text-sm font-medium text-[#14171A] transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {saving ? "Saving…" : editingSetId ? "Update set" : "Add set"}
                 </button>

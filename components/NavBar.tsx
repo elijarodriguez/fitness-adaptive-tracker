@@ -6,11 +6,6 @@ import { useAuth } from "@/components/AuthProvider";
 
 const NAV_ITEMS = [
   { href: "/log", label: "Train" },
-  { href: "/checkin", label: "Check-in" },
-  { href: "/meals", label: "Fuel" },
-  { href: "/trends", label: "Progress" },
-  { href: "/wellness", label: "Wellness" },
-  { href: "/fatigue", label: "Recovery" },
 ];
 
 export default function NavBar() {
@@ -19,7 +14,7 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-0 z-10 border-b border-[var(--line)] bg-[#0d1110]/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-5 py-4 lg:px-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:gap-5 sm:px-5 sm:py-4 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2.5 text-sm font-semibold tracking-[0.16em] text-[var(--foreground)]">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--accent)] text-xs font-black text-[var(--accent-ink)]">O</span>
           OVERTONE
@@ -44,7 +39,7 @@ export default function NavBar() {
             );
           })}
         </div>
-        <Link href="/account" title="Open account" className="hidden shrink-0 rounded-lg border border-[var(--line)] px-3 py-2 text-xs font-medium text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)] sm:block">
+        <Link href="/account" title="Open account" className="shrink-0 rounded-lg border border-[var(--line)] px-2.5 py-2 text-xs font-medium text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)] sm:px-3">
           {user ? "Account" : "Sign in"}
         </Link>
       </div>

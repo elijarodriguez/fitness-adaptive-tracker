@@ -59,7 +59,10 @@ export default function MealLogger() {
 
   useEffect(() => {
     async function load() {
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       try {
         const q = query(collection(db, "mealLogs"), where("ownerId", "==", user.uid));
         const snap = await getDocs(q);

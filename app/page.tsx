@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import type { ReadinessCheckIn, WorkoutSession } from "@/lib/fitness-data-model";
+import type { WorkoutSession } from "@/lib/fitness-data-model";
 
 function todayId() {
   return new Date().toISOString().slice(0, 10);
@@ -26,7 +26,6 @@ function getStreak(dates: string[]) {
 }
 
 type DashboardMetrics = {
-  readiness: number | null;
   weekSessions: number;
   streak: number;
   todaySets: number;
@@ -34,7 +33,6 @@ type DashboardMetrics = {
 
 export default function Home() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
-    readiness: null,
     weekSessions: 0,
     streak: 0,
     todaySets: 0,
@@ -45,11 +43,7 @@ export default function Home() {
     async function loadMetrics() {
       if (!user) return;
       try {
-        const [readinessSnap, sessionsSnap] = await Promise.all([
-          getDocs(query(collection(db, "readinessCheckIns"), where("ownerId", "==", user.uid))),
-          getDocs(query(collection(db, "workoutSessions"), where("ownerId", "==", user.uid))),
-        ]);
-        const readiness = readinessSnap.docs.map((doc) => doc.data() as ReadinessCheckIn);
+        const sessionsSnap = await getDocs(query(collection(db, "workoutSessions"), where("ownerId", "==", user.uid)));
         const sessions = sessionsSnap.docs.map((doc) => doc.data() as WorkoutSession);
         const today = todayId();
         const weekStart = new Date();
@@ -57,9 +51,7 @@ export default function Home() {
         const weekStartId = weekStart.toISOString().slice(0, 10);
         const sessionDates = sessions.map((session) => session.date);
         const todaySession = sessions.find((session) => session.date === today);
-        const latestReadiness = [...readiness].sort((a, b) => b.date.localeCompare(a.date))[0];
         setMetrics({
-          readiness: latestReadiness?.readinessScore ?? null,
           weekSessions: sessions.filter((session) => session.date >= weekStartId && session.date <= today).length,
           streak: getStreak(sessionDates),
           todaySets: todaySession?.sets?.length ?? 0,
@@ -71,8 +63,6 @@ export default function Home() {
     loadMetrics();
   }, [user]);
 
-  const readinessLabel = metrics.readiness === null ? "No check-in yet" : metrics.readiness >= 70 ? "Good to go" : "Take it lighter";
-  const readinessWidth = metrics.readiness ?? 0;
   const today = new Date();
   const dateLabel = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -91,21 +81,13 @@ export default function Home() {
             <Link href="/log" className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-ink)] transition-transform hover:-translate-y-0.5">
               Start today&apos;s session <span aria-hidden="true">-&gt;</span>
             </Link>
-            <Link href="/checkin" className="rounded-xl border border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-raised)]">
-              Check readiness
-            </Link>
           </div>
         </div>
         <div className="absolute -right-16 -top-24 h-72 w-72 rounded-full border-[28px] border-[var(--accent)]/10 sm:h-96 sm:w-96" />
         <div className="absolute bottom-[-4.5rem] right-20 h-44 w-44 rounded-full bg-[var(--warm)]/10 blur-2xl" />
       </section>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
-          <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Readiness</p>
-          <div className="mt-4 flex items-end justify-between"><strong className="text-4xl tracking-[-0.05em]">{metrics.readiness ?? "--"}</strong><span className="mb-1 text-right text-sm text-[var(--accent)]">{readinessLabel}</span></div>
-          <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-[var(--line)]"><div className="h-full rounded-full bg-[var(--accent)] transition-[width]" style={{ width: `${readinessWidth}%` }} /></div>
-        </div>
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
           <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">This week</p>
           <div className="mt-4 flex items-end justify-between"><strong className="text-4xl tracking-[-0.05em]">{metrics.weekSessions} <span className="text-xl font-normal text-[var(--muted)]">/ 4</span></strong><span className="mb-1 text-sm text-[var(--warm)]">sessions</span></div>
@@ -120,17 +102,11 @@ export default function Home() {
 
       <section className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
         <div>
-          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Your plan</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Built for today</h2></div><Link href="/trends" className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]">View progress -&gt;</Link></div>
+          <div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Your plan</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Built for today</h2></div>
           <Link href="/log" className="group block rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-raised)]">
             <div className="flex items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">Upper body · 45 min</span><h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Strength &amp; control</h3><p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">A focused push and pull session, tuned to your current recovery level.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-lg text-[var(--accent-ink)] transition-transform group-hover:translate-x-1">-&gt;</span></div>
             <div className="mt-7 flex flex-wrap gap-2 text-xs text-[var(--muted)]"><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">{metrics.todaySets} sets logged</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Moderate effort</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Gym access</span></div>
           </Link>
-        </div>
-        <div>
-          <div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Quick actions</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Keep your rhythm</h2></div>
-          <div className="space-y-3">
-            {[{ href: "/meals", label: "Log a meal", detail: "Fuel your next session", icon: "01" }, { href: "/wellness", label: "Daily wellness", detail: "Sleep, stress & energy", icon: "02" }, { href: "/fatigue", label: "Review recovery", detail: "Spot patterns early", icon: "03" }].map((item) => <Link href={item.href} key={item.href} className="flex items-center gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-raised)]"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--surface-raised)] text-xs font-semibold text-[var(--accent)]">{item.icon}</span><span className="flex-1"><strong className="block text-sm font-semibold">{item.label}</strong><span className="mt-1 block text-xs text-[var(--muted)]">{item.detail}</span></span><span className="text-[var(--muted)]">-&gt;</span></Link>)}
-          </div>
         </div>
       </section>
       
