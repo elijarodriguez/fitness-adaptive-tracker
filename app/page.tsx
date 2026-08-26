@@ -78,8 +78,11 @@ export default function Home() {
             Overtone adapts your training around readiness, recovery, and the work you want to do today.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/log" className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-ink)] transition-transform hover:-translate-y-0.5">
-              Start today&apos;s session <span aria-hidden="true">-&gt;</span>
+            <Link href="/checkin" className="rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--accent-ink)] transition-transform hover:-translate-y-0.5">
+              Start with a check-in <span aria-hidden="true">-&gt;</span>
+            </Link>
+            <Link href="/log" className="rounded-xl border border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+              Log a session
             </Link>
           </div>
         </div>
@@ -102,12 +105,27 @@ export default function Home() {
 
       <section className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
         <div>
-          <div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Your plan</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Built for today</h2></div>
+          <div className="mb-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Your plan</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Built for today</h2><p className="mt-2 text-sm text-[var(--muted)]">A simple loop: check in, train, then reflect.</p></div>
           <Link href="/log" className="group block rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-raised)]">
             <div className="flex items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--warm)]">Upper body · 45 min</span><h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">Strength &amp; control</h3><p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">A focused push and pull session, tuned to your current recovery level.</p></div><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--accent)] text-lg text-[var(--accent-ink)] transition-transform group-hover:translate-x-1">-&gt;</span></div>
             <div className="mt-7 flex flex-wrap gap-2 text-xs text-[var(--muted)]"><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">{metrics.todaySets} sets logged</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Moderate effort</span><span className="rounded-lg bg-[var(--surface-raised)] px-3 py-2">Gym access</span></div>
           </Link>
         </div>
+        <aside className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 lg:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--warm)]">Daily rhythm</p>
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em]">Keep the signal clear</h2>
+          <div className="mt-5 space-y-3">
+            <Link href="/checkin" className="group flex items-center justify-between rounded-xl bg-[var(--surface-raised)] px-4 py-3 transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-ink)]">
+              <span><strong className="block text-sm">01 · Check in</strong><span className="text-xs text-[var(--muted)] group-hover:text-[var(--accent-ink)]/70">Readiness in 60 seconds</span></span><span aria-hidden="true">-&gt;</span>
+            </Link>
+            <Link href="/meals" className="group flex items-center justify-between rounded-xl bg-[var(--surface-raised)] px-4 py-3 transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-ink)]">
+              <span><strong className="block text-sm">02 · Fuel</strong><span className="text-xs text-[var(--muted)] group-hover:text-[var(--accent-ink)]/70">Log what supports you</span></span><span aria-hidden="true">-&gt;</span>
+            </Link>
+            <Link href="/trends" className="group flex items-center justify-between rounded-xl bg-[var(--surface-raised)] px-4 py-3 transition-colors hover:bg-[var(--accent)] hover:text-[var(--accent-ink)]">
+              <span><strong className="block text-sm">03 · Review</strong><span className="text-xs text-[var(--muted)] group-hover:text-[var(--accent-ink)]/70">Notice patterns over time</span></span><span aria-hidden="true">-&gt;</span>
+            </Link>
+          </div>
+        </aside>
       </section>
       
       

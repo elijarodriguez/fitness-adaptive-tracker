@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 const NAV_ITEMS = [
+  { href: "/", label: "Today" },
+  { href: "/checkin", label: "Check-in" },
   { href: "/log", label: "Train" },
+  { href: "/meals", label: "Fuel" },
+  { href: "/trends", label: "Review" },
 ];
 
 export default function NavBar() {
@@ -21,7 +25,7 @@ export default function NavBar() {
         </Link>
         <div className="flex max-w-full gap-1 overflow-x-auto pb-0.5">
           {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href;
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -284,6 +285,20 @@ export default function ReadinessAndRPE() {
           >
             {rpeSaving ? "Saving…" : rpeSaved ? "Update RPE" : "Save RPE"}
           </button>
+        </section>
+
+        <section className="rounded-2xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-5 sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">What&apos;s next</p>
+          <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-[-0.02em]">Turn today&apos;s signal into a choice.</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">Use your check-in to guide the session, then log what supported it.</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Link href="/log" className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--accent-ink)] transition-transform hover:-translate-y-0.5">Go train</Link>
+              <Link href="/meals" className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">Log fuel</Link>
+            </div>
+          </div>
         </section>
       </div>
     </div>
