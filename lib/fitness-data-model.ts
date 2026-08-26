@@ -26,6 +26,20 @@ export type EquipmentTier = "machine" | "band" | "bodyweight";
 
 export type PortionSize = "small" | "medium" | "large";
 
+export type WorkoutProgram = "ppl" | "arnold" | "upper_lower" | "fbeod" | "anterior_posterior";
+
+export type WorkoutFocus =
+  | "push"
+  | "pull"
+  | "legs"
+  | "chest_back"
+  | "shoulders_arms"
+  | "upper"
+  | "lower"
+  | "full_body"
+  | "anterior"
+  | "posterior";
+
 // Where in the range of motion the exercise loads the muscle hardest.
 // Applies to compounds AND isolation exercises — e.g. SLDL (compound) is
 // stretch-emphasis on the hamstrings, same logic as an incline curl.
@@ -68,6 +82,8 @@ export interface WorkoutSession {
   ownerId?: string;
   sets: SetLog[];
   durationMinutes?: number; // used for training load calc, paired with SessionRPE
+  program?: WorkoutProgram;
+  focus?: WorkoutFocus;
 }
 
 // ---------- Session RPE / Training Load ----------

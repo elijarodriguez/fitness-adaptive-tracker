@@ -18,6 +18,8 @@ import type {
   ExerciseSubstitutionGroup,
   MuscleGroup,
   SetLog,
+  WorkoutFocus,
+  WorkoutProgram,
 } from "@/lib/fitness-data-model";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -34,6 +36,28 @@ const MUSCLE_GROUPS: MuscleGroup[] = [
 ];
 
 const RIR_OPTIONS = [0, 1, 2, 3, 4] as const;
+
+const PROGRAMS: { id: WorkoutProgram; label: string; description: string; focuses: { id: WorkoutFocus; label: string; groups: MuscleGroup[] }[] }[] = [
+  { id: "ppl", label: "PPL", description: "Push, pull, legs", focuses: [
+    { id: "push", label: "Push", groups: ["chest", "shoulders", "triceps"] },
+    { id: "pull", label: "Pull", groups: ["back", "biceps"] },
+    { id: "legs", label: "Legs", groups: ["quads", "hamstrings", "calves", "core"] },
+  ] },
+  { id: "arnold", label: "Arnold split", description: "Chest/back, shoulders/arms, legs", focuses: [
+    { id: "chest_back", label: "Chest + back", groups: ["chest", "back"] },
+    { id: "shoulders_arms", label: "Shoulders + arms", groups: ["shoulders", "biceps", "triceps"] },
+    { id: "legs", label: "Legs", groups: ["quads", "hamstrings", "calves", "core"] },
+  ] },
+  { id: "upper_lower", label: "Upper / lower", description: "Upper body, lower body", focuses: [
+    { id: "upper", label: "Upper body", groups: ["chest", "back", "shoulders", "biceps", "triceps"] },
+    { id: "lower", label: "Lower body", groups: ["quads", "hamstrings", "calves", "core"] },
+  ] },
+  { id: "fbeod", label: "FBEOD", description: "Full body every other day", focuses: [{ id: "full_body", label: "Full body", groups: MUSCLE_GROUPS }] },
+  { id: "anterior_posterior", label: "Anterior / posterior", description: "Front and back of the body", focuses: [
+    { id: "anterior", label: "Anterior", groups: ["chest", "shoulders", "biceps", "quads", "core"] },
+    { id: "posterior", label: "Posterior", groups: ["back", "triceps", "hamstrings", "calves"] },
+  ] },
+];
 
 function todayId() {
   // Local calendar date (not UTC) — toISOString() would shift the date near
@@ -57,6 +81,8 @@ export default function WorkoutLogger() {
   const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
   const [subGroups, setSubGroups] = useState<ExerciseSubstitutionGroup[]>([]);
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | "all">("all");
+  const [program, setProgram] = useState<WorkoutProgram>("ppl");
+  const [focus, setFocus] = useState<WorkoutFocus>("push");
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [showAlternatives, setShowAlternatives] = useState(false);
@@ -90,9 +116,11 @@ export default function WorkoutLogger() {
         setExercises(exSnap.docs.map((d) => ({ ...(d.data() as Exercise), id: d.id })));
         setSubGroups(subSnap.docs.map((d) => d.data() as ExerciseSubstitutionGroup));
         const previousSession = sessionsSnap.docs
-          .map((session) => session.data() as { date: string; sets?: SetLog[] })
+          .map((session) => session.data() as { date: string; sets?: SetLog[]; program?: WorkoutProgram; focus?: WorkoutFocus })
           .find((session) => session.date === todayId());
         setLoggedSets((previousSession?.sets ?? []) as SetLog[]);
+        if (previousSession?.program) setProgram(previousSession.program);
+        if (previousSession?.focus) setFocus(previousSession.focus);
         const priorSession = sessionsSnap.docs
           .map((session) => session.data() as { date: string; sets?: SetLog[] })
           .filter((session) => session.date < todayId())
@@ -125,6 +153,10 @@ export default function WorkoutLogger() {
       ).filter((e) => e.name.toLowerCase().includes(exerciseSearch.toLowerCase())),
     [exercises, customExercises, muscleFilter, exerciseSearch]
   );
+
+  const selectedProgram = PROGRAMS.find((item) => item.id === program) ?? PROGRAMS[0];
+  const selectedFocus = selectedProgram.focuses.find((item) => item.id === focus) ?? selectedProgram.focuses[0];
+  const focusExercises = filteredExercises.filter((exercise) => selectedFocus.groups.includes(exercise.muscleGroup));
 
   const allExercises = useMemo(() => [...exercises, ...customExercises], [exercises, customExercises]);
   const selectedExercise = allExercises.find((e) => e.id === selectedExerciseId) ?? null;
@@ -182,6 +214,20 @@ export default function WorkoutLogger() {
     setReps("");
     setRir(2);
     setNotice(null);
+  }
+
+  function selectProgram(nextProgram: WorkoutProgram) {
+    const next = PROGRAMS.find((item) => item.id === nextProgram) ?? PROGRAMS[0];
+    setProgram(nextProgram);
+    setFocus(next.focuses[0].id);
+    setMuscleFilter("all");
+    setSelectedExerciseId(null);
+  }
+
+  function selectFocus(nextFocus: WorkoutFocus) {
+    setFocus(nextFocus);
+    setMuscleFilter("all");
+    setSelectedExerciseId(null);
   }
 
   function editSet(set: SetLog) {
@@ -245,7 +291,7 @@ export default function WorkoutLogger() {
       } else {
         await setDoc(
           sessionRef,
-          { id: todayId(), date: todayId(), ownerId: user.uid, sets: arrayUnion(newSet) },
+          { id: todayId(), date: todayId(), ownerId: user.uid, program, focus, sets: arrayUnion(newSet) },
           { merge: true }
         );
         setLoggedSets((prev) => [...prev, newSet]);
@@ -324,6 +370,21 @@ export default function WorkoutLogger() {
           </div>
         </header>
 
+        <section className="mb-8 rounded-2xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Step 1 of 3</p><h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">Choose today&apos;s program</h2><p className="mt-1 text-sm text-[var(--muted)]">Set the focus first. Your exercise list will follow it.</p></div>
+            <span className="text-xs font-medium text-[var(--muted)]">{selectedFocus.label}</span>
+          </div>
+          <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {PROGRAMS.map((item) => (
+              <button key={item.id} type="button" onClick={() => selectProgram(item.id)} className={`rounded-xl border px-3 py-3 text-left transition-colors ${program === item.id ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--line)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--accent)]/60"}`}>
+                <strong className="block text-sm">{item.label}</strong><span className={`mt-1 block text-xs ${program === item.id ? "text-[var(--accent-ink)]/70" : "text-[var(--muted)]"}`}>{item.description}</span>
+              </button>
+            ))}
+          </div>
+          {selectedProgram.focuses.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{selectedProgram.focuses.map((item) => <button key={item.id} type="button" onClick={() => selectFocus(item.id)} className={`shrink-0 rounded-full px-3 py-2 text-xs font-medium transition-colors ${focus === item.id ? "bg-[var(--warm)] text-[var(--accent-ink)]" : "bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]"}`}>{item.label}</button>)}</div>}
+        </section>
+
         {error && (
           <div className="mb-6 rounded-md border border-[#C97064]/40 bg-[#C97064]/10 px-4 py-3 text-sm text-[#E3A99E]">
             {error}
@@ -338,7 +399,7 @@ export default function WorkoutLogger() {
 
         {/* Muscle group filter */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Choose an exercise</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">Step 2 of 3 · Choose an exercise</p>
           <input
             type="search"
             value={exerciseSearch}
@@ -396,7 +457,7 @@ export default function WorkoutLogger() {
         {/* Exercise picker */}
         <div className="mb-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2">
           <div className="max-h-56 overflow-y-auto">
-            {filteredExercises.map((ex) => (
+            {focusExercises.map((ex) => (
               <button
                 key={ex.id}
                 onClick={() => selectExercise(ex.id)}
@@ -412,8 +473,8 @@ export default function WorkoutLogger() {
                 </span>
               </button>
             ))}
-            {filteredExercises.length === 0 && (
-              <p className="px-3 py-4 text-sm text-[#8B939B]">No exercises in this group yet.</p>
+            {focusExercises.length === 0 && (
+              <p className="px-3 py-4 text-sm text-[#8B939B]">No exercises match this focus. Try another focus or clear the search.</p>
             )}
           </div>
         </div>

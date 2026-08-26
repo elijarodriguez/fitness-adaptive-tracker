@@ -39,3 +39,9 @@ a, button {
   scrollbar-color: var(--line) transparent;
   scrollbar-width: thin;
 }
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 4.5rem;
+  }
+}
