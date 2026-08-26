@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /exercises/{exerciseId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /substitutionGroups/{groupId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{userId}/customExercises/{exerciseId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Personal records must carry the owner's Firebase Auth UID.
+    match /workoutSessions/{sessionId} {
+      allow read: if isOwner(resource.data);
+      allow create, update: if isOwner(request.resource.data);
+    }
+
+    match /readinessCheckIns/{checkInId} {
+      allow read: if isOwner(resource.data);
+      allow create, update: if isOwner(request.resource.data);
+    }
+
+    match /sessionRPEs/{rpeId} {
+      allow read: if isOwner(resource.data);
+      allow create, update: if isOwner(request.resource.data);
+    }
+
+    match /mealLogs/{mealId} {
+      allow read: if isOwner(resource.data);
+      allow create, update: if isOwner(request.resource.data);
+    }
+
+    function isOwner(data) {
+      return request.auth != null && data.ownerId == request.auth.uid;
+    }
+  }
+}
